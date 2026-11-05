@@ -6,6 +6,7 @@ export default {
     orders: '注文',
     finance: '財務',
     demandForecast: '需要予測',
+    restocking: '補充発注',
     companyName: '触媒コンポーネンツ',
     subtitle: '在庫管理システム'
   },
@@ -106,6 +107,7 @@ export default {
     title: '注文',
     description: '顧客注文の表示と管理',
     allOrders: 'すべての注文',
+    submittedOrders: '送信済み注文',
     totalOrders: '総注文数',
     totalRevenue: '総収益',
     avgOrderValue: '平均注文額',
@@ -125,7 +127,9 @@ export default {
       totalValue: '合計金額',
       status: 'ステータス',
       expectedDelivery: '予定配達日',
-      actualDelivery: '実際の配達日'
+      actualDelivery: '実際の配達日',
+      submittedDate: '送信日',
+      leadTime: 'リードタイム'
     }
   },
 
@@ -168,6 +172,30 @@ export default {
   },
 
   // Demand Forecast
+  restocking: {
+    title: '補充発注',
+    description: '需要予測と予算に基づく推奨補充発注',
+    budget: '予算',
+    orderTotal: '発注合計',
+    remaining: '残り予算',
+    items: '品目',
+    table: {
+      sku: 'SKU',
+      item: '品目',
+      trend: 'トレンド',
+      quantity: '数量',
+      unitCost: '単価',
+      lineTotal: '小計',
+      leadTime: 'リードタイム'
+    },
+    recommendedOrder: '推奨発注',
+    placeOrder: '発注する',
+    placing: '発注中...',
+    success: '注文 {orderNumber} を送信しました。リードタイム: {days}日。配達予定日: {date}。',
+    noRecommendations: '選択した予算に収まる品目がありません。',
+    days: '{days}日'
+  },
+
   demand: {
     title: '需要予測',
     description: '需要動向の分析と将来のニーズの予測',
@@ -201,6 +229,7 @@ export default {
   // Statuses
   status: {
     delivered: '配達済み',
+    submitted: '送信済み',
     shipped: '出荷済み',
     processing: '処理中',
     backordered: 'バックオーダー',

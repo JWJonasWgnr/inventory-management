@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
@@ -89,6 +90,8 @@ class DemandForecast(BaseModel):
     forecasted_demand: int
     trend: str
     period: str
+    unit_cost: float
+    lead_time_days: int
 
 class BacklogItem(BaseModel):
     id: str
@@ -119,6 +122,28 @@ class CreatePurchaseOrderRequest(BaseModel):
     unit_cost: float
     expected_delivery_date: str
     notes: Optional[str] = None
+
+class RestockLine(BaseModel):
+    sku: str
+    quantity: int
+
+class CreateRestockOrderRequest(BaseModel):
+    items: List[RestockLine]
+    budget: float
+
+class RestockOrder(BaseModel):
+    id: str
+    order_number: str
+    items: List[dict]
+    total_value: float
+    budget: float
+    created_date: str
+    lead_time_days: int
+    expected_delivery: str
+    status: str
+
+# Submitted restock orders, in memory only (lost on restart)
+restock_orders: list = []
 
 # API endpoints
 @app.get("/")
@@ -303,6 +328,54 @@ def get_monthly_trends():
     result = list(months.values())
     result.sort(key=lambda x: x['month'])
     return result
+
+@app.get("/api/restock-orders", response_model=List[RestockOrder])
+def get_restock_orders():
+    """Get submitted restock orders, newest first"""
+    return list(reversed(restock_orders))
+
+@app.post("/api/restock-orders", response_model=RestockOrder, status_code=201)
+def create_restock_order(request: CreateRestockOrderRequest):
+    """Submit a restock order; prices come from the forecast data, not the client"""
+    if not request.items:
+        raise HTTPException(status_code=400, detail="Order has no items")
+
+    forecasts_by_sku = {f["item_sku"]: f for f in demand_forecasts}
+    lines = []
+    for line in request.items:
+        forecast = forecasts_by_sku.get(line.sku)
+        if not forecast:
+            raise HTTPException(status_code=400, detail=f"Unknown SKU: {line.sku}")
+        if line.quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Quantity must be positive for {line.sku}")
+        lines.append({
+            "sku": line.sku,
+            "name": forecast["item_name"],
+            "quantity": line.quantity,
+            "unit_price": forecast["unit_cost"],
+            "lead_time_days": forecast["lead_time_days"],
+        })
+
+    total_value = round(sum(l["quantity"] * l["unit_price"] for l in lines), 2)
+    if total_value > request.budget:
+        raise HTTPException(status_code=400, detail="Order total exceeds budget")
+
+    lead_time_days = max(l["lead_time_days"] for l in lines)
+    created = datetime.now().replace(microsecond=0)
+    number = len(restock_orders) + 1
+    order = {
+        "id": str(number),
+        "order_number": f"RST-{created.year}-{number:04d}",
+        "items": lines,
+        "total_value": total_value,
+        "budget": request.budget,
+        "created_date": created.isoformat(),
+        "lead_time_days": lead_time_days,
+        "expected_delivery": (created + timedelta(days=lead_time_days)).isoformat(),
+        "status": "Submitted",
+    }
+    restock_orders.append(order)
+    return order
 
 if __name__ == "__main__":
     import uvicorn
